@@ -3,6 +3,7 @@ import { ReplyPayload } from "../auto-reply/types.js";
 export interface BranchResult {
   name: string;
   response: ReplyPayload;
+  score?: number;
 }
 
 export class JudgeEvaluator {
@@ -20,6 +21,27 @@ export class JudgeEvaluator {
     let bestBranch = branches[0].name;
 
     for (const branch of branches) {
+      const score = this.calculateScore(branch);
+      branch.score = score;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestBranch = branch.name;
+      }
+    }
+
+    return bestBranch;
+  }
+
+  public static async evaluateBranchEarly(branch: BranchResult): Promise<boolean> {
+     // Simulate quick evaluation
+     const score = this.calculateScore(branch);
+     branch.score = score;
+     // Threshold for early exit
+     return score > 80;
+  }
+
+  private static calculateScore(branch: BranchResult): number {
       const text = typeof branch.response.text === 'string' ? branch.response.text : "";
       let score = text.length;
 
@@ -33,12 +55,10 @@ export class JudgeEvaluator {
         score += 100;
       }
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestBranch = branch.name;
-      }
-    }
+      // Bonus for specific keywords related to the persona
+      if (branch.name.includes("Academic") && text.includes("research")) score += 50;
+      if (branch.name.includes("Hacker") && text.includes("code")) score += 50;
 
-    return bestBranch;
+      return score;
   }
 }
