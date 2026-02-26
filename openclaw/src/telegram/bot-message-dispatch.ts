@@ -1,3 +1,4 @@
+import { MultiverseExecutor } from "../agents/MultiverseExecutor.js";
 import type { Bot } from "grammy";
 import { resolveAgentDir } from "../agents/agent-scope.js";
 import {
@@ -596,6 +597,7 @@ export const dispatchTelegramMessage = async ({
           : undefined,
         onModelSelected,
       },
+      replyResolver: async (ctx) => await MultiverseExecutor.executeBranching(ctx.Body ?? "", context, cfg, runtime, bot),
     }));
   } finally {
     // Must stop() first to flush debounced content before clear() wipes state.
