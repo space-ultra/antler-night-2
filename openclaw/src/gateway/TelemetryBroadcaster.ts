@@ -5,7 +5,7 @@ import ora, { type Ora } from "ora";
 import Table from "cli-table3";
 
 interface TelemetryEvent {
-  type: "fork" | "simulate" | "prune" | "winner" | "status";
+  type: "fork" | "simulate" | "prune" | "winner" | "status" | "abort" | "resurrect";
   payload: any;
   timestamp: number;
 }
@@ -85,6 +85,28 @@ export class TelemetryBroadcaster {
       this.spinner = null;
     }
     console.log(chalk.red(`❌ PRUNED: ${prunedBranches.join(", ")}`));
+  }
+
+  public logAbort(winner: string) {
+    this.broadcast({
+      type: "abort",
+      payload: { winner },
+      timestamp: Date.now(),
+    });
+    if (this.spinner) {
+      this.spinner.stop();
+      this.spinner = null;
+    }
+    console.log(chalk.yellow(`🛑 ABORTED_EARLY: Branch ${winner} won; killing others to save latency.`));
+  }
+
+  public logResurrection(branchName: string) {
+     this.broadcast({
+      type: "resurrect",
+      payload: { branchName },
+      timestamp: Date.now(),
+    });
+    console.log(chalk.magenta(`🧟 RESURRECTED: Branch ${branchName} pulled from the graveyard.`));
   }
 
   public logWinner(winner: string, response: string) {

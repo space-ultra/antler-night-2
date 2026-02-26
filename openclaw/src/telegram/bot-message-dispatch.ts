@@ -597,7 +597,15 @@ export const dispatchTelegramMessage = async ({
           : undefined,
         onModelSelected,
       },
-      replyResolver: async (ctx) => await MultiverseExecutor.executeBranching(ctx.Body ?? "", context, cfg, runtime, bot),
+      replyResolver: async (ctx) => {
+        const body = (ctx.Body ?? "").trim().toLowerCase();
+        if (body === "try another way" || body === "/alt" || body === "regenerate") {
+           const resurrected = await MultiverseExecutor.resurrectBranch(context);
+           if (resurrected) return resurrected;
+           return { text: "No alternative realities found in the graveyard." };
+        }
+        return await MultiverseExecutor.executeBranching(ctx.Body ?? "", context, cfg, runtime, bot);
+      },
     }));
   } finally {
     // Must stop() first to flush debounced content before clear() wipes state.
