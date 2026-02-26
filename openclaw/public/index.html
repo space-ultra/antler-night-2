@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Multiverse Visualizer</title>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    body { margin: 0; background: #000; color: #0f0; font-family: "Courier New", monospace; overflow: hidden; }
+    #mynetwork { width: 100vw; height: 100vh; }
+    .status {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      font-size: 24px;
+      text-shadow: 0 0 10px #0f0;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border: 1px solid #0f0;
+    }
+  </style>
+</head>
+<body>
+<div class="status" id="status">Waiting for Connection...</div>
+<div id="mynetwork"></div>
+<script>
+  const ws = new WebSocket('ws://localhost:8080');
+  const statusDiv = document.getElementById('status');
+
+  // Vis.js setup
+  const nodes = new vis.DataSet([
+    { id: 'root', label: 'Reality Anchor', color: '#00ffff', size: 40 }
+  ]);
+  const edges = new vis.DataSet([]);
+  const container = document.getElementById('mynetwork');
+  const data = { nodes: nodes, edges: edges };
+  const options = {
+    nodes: {
+      shape: 'dot',
+      size: 30,
+      font: { size: 16, color: '#ffffff', face: 'monospace' },
+      borderWidth: 2,
+      shadow: true
+    },
+    edges: {
+      width: 2,
+      color: '#00ff00',
+      smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 },
+      shadow: true
+    },
+    physics: {
+      stabilization: false,
+      barnesHut: {
+        gravitationalConstant: -20000,
+        springConstant: 0.04,
+        springLength: 150
+      }
+    },
+    layout: {
+      hierarchical: {
+        direction: 'UD',
+        sortMethod: 'directed',
+        levelSeparation: 150
+      }
+    }
+  };
+  const network = new vis.Network(container, data, options);
+
+  // Reset view on load
+  network.once("stabilizationIterationsDone", function() {
+      network.fit();
+  });
+
+  ws.onopen = () => {
+    statusDiv.innerText = 'Connected to Multiverse Engine';
+    statusDiv.style.color = '#00ff00';
+    statusDiv.style.borderColor = '#00ff00';
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    console.log('Received:', msg);
+
+    if (msg.type === 'fork') {
+      statusDiv.innerText = '⚡ FORKING REALITY...';
+      const branches = msg.payload.branches;
+
+      // Reset logic for clean slate each run?
+      // Or keep appending? Let's clear non-root nodes for clarity if needed.
+      // But maybe nice to see history.
+      // Let's clear for cleaner demo.
+      const existingIds = nodes.getIds();
+      const nonRoot = existingIds.filter(id => id !== 'root');
+      nodes.remove(nonRoot);
+      edges.clear();
+
+      branches.forEach((branchName, index) => {
+        const id = `branch-${branchName}`;
+        nodes.add({ id: id, label: branchName, color: '#ffff00', group: 'branch', level: 1 });
+        edges.add({ from: 'root', to: id });
+      });
+      network.fit();
+    } else if (msg.type === 'simulate') {
+       statusDiv.innerText = '⚙️ SIMULATING PARALLEL TIMELINES...';
+       const branches = msg.payload.branches;
+       nodes.forEach(node => {
+         if (branches.includes(node.label)) {
+           nodes.update({ id: node.id, color: '#ff00ff', size: 45 });
+         }
+       });
+    } else if (msg.type === 'prune') {
+       statusDiv.innerText = '❌ PRUNING UNSTABLE TIMELINES...';
+       const prunedBranches = msg.payload.prunedBranches;
+       nodes.forEach(node => {
+         if (prunedBranches.includes(node.label)) {
+           nodes.update({ id: node.id, color: '#ff0000', opacity: 0.3 });
+         }
+       });
+    } else if (msg.type === 'winner') {
+       statusDiv.innerText = `✅ REALITY COLLAPSED: ${msg.payload.winner}`;
+       const winner = msg.payload.winner;
+       let winnerId = null;
+       nodes.forEach(node => {
+         if (node.label === winner) {
+           winnerId = node.id;
+           nodes.update({ id: node.id, color: '#00ff00', size: 60, font: { size: 24 } });
+         } else if (node.id !== 'root') {
+            nodes.update({ id: node.id, color: '#555555', opacity: 0.2 });
+         }
+       });
+
+       if (winnerId) {
+         const responseNodeId = 'final-response';
+         nodes.add({
+            id: responseNodeId,
+            label: 'Consensus Reached',
+            color: '#ffffff',
+            shape: 'box',
+            font: { color: '#000000' },
+            level: 2
+         });
+         edges.add({ from: winnerId, to: responseNodeId, color: '#ffffff', width: 3 });
+       }
+       network.fit();
+    }
+  };
+
+  ws.onclose = () => {
+    statusDiv.innerText = 'Disconnected from Multiverse Engine';
+    statusDiv.style.color = '#ff0000';
+    statusDiv.style.borderColor = '#ff0000';
+  };
+</script>
+</body>
+</html>
